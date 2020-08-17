@@ -140,6 +140,11 @@ parseTagsLoop:
 			return err
 		}
 
+		previousTagSizeN := binary.BigEndian.Uint32(bPreviousTagSizeN)
+		if previousTagSizeN != 11+dataSize {
+			return errors.New("previousTagSize value incorrect")
+		}
+
 		timeStamp := ui24(bTagBuf[4:7])
 		timeStampExtended := ui8(bTagBuf[7:8])
 		tagTimeStamp := (uint32(timeStampExtended) << 24) + timeStamp
