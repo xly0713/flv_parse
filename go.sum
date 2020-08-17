@@ -1,0 +1,4 @@
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/yutopp/go-amf0 v0.0.0-20180803120851-48851794bb1f h1:VIlyzrDymNB/eD+uJ2vdhgxsY1OGKpVSvVPV3oy97cI=
+github.com/yutopp/go-amf0 v0.0.0-20180803120851-48851794bb1f/go.mod h1:miopb3mUO8ynCPmYD04SZ0JCMFsBt0eOdAuQ6HHHQ6Q=
