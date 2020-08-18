@@ -3,6 +3,7 @@ package flv
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/pkg/errors"
@@ -128,7 +129,7 @@ parseTagsLoop:
 		}
 
 		tagType := ui8(bTagBuf[0:1]) & 0x1f
-		dataSize := ui24(bTagBuf[1:4])
+		dataSize := ui24(bTagBuf[1:4]) //FIXME: check dataSize positive
 
 		dataBuf := make([]byte, dataSize)
 		if _, err := io.ReadAtLeast(fp.reader, dataBuf, int(dataSize)); err != nil {
@@ -167,6 +168,7 @@ parseTagsLoop:
 			fp.bodyInfo.videoEndTimeStamp = tagTimeStamp
 
 			//TODO: parse video data
+			fp.parseVideoTag(dataBuf)
 
 		case 0x12: //scriptData
 			fp.metaInfo = make(map[string]amf0.ECMAArray)
@@ -178,6 +180,66 @@ parseTagsLoop:
 			return errors.New("unknown flv tag type")
 		}
 	}
+
+	return nil
+}
+
+func (fp *Parser) parseVideoTag(dataBuf []byte) error {
+	fc := ui8(dataBuf[0:1])
+	frameType := (fc >> 4) //1:keyframe  2:inter frame  3:disposable inter frame(H.263 only)  4:generated keyframe(server use only)  5:video info/command frame
+	codecID := fc & 0x0f   //1:JPEG  2:Sorenson H.263  3.Screen video  4.On2 VP6  5:On2 VP6 with alpha channel  6:Screen video version 2  7:AVC
+
+	if frameType == 5 { //video info/command frame
+		seek := ui8(dataBuf[1:2])
+		if seek == 0 {
+			fmt.Println("Start of client-side seeking video frame squeunce")
+		} else if seek == 1 {
+			fmt.Println("End of client-side seeking video frame squeunce")
+		}
+		return nil
+	}
+
+	switch codecID {
+	case 2:
+		//H263VIDEOPACKET
+	case 3:
+		//SCREENVIDEOPACKET
+	case 4:
+		//VP6FLVVIDEOPACKET
+	case 5:
+		//VP6FLVALPHAVIDEOPACKET
+	case 6:
+		//SCREENV2VIDEOPACKET
+	case 7:
+		//AVCVIDEOPACKET
+		return fp.avcVideoPacket(dataBuf, frameType)
+	default:
+	}
+
+	//fmt.Printf("FrameType: %d, CodecID: %d\n", frameType, codecID)
+
+	return nil
+}
+
+func (fp *Parser) avcVideoPacket(dataBuf []byte, frameType uint8) error {
+	videoData := dataBuf[1:]
+	if len(videoData) <= 4 {
+		return errors.New("invalid AVCVIDEOPACKET")
+	}
+
+	// 0:AVC sequence header  1:AVC NALU   2: AVC end of sequence
+	avcPacketType := ui8(videoData[0:1])
+	// Composition time offset
+	compositionTime := ui24(videoData[1:4])
+	// h.264 raw data  (1) AVCDecoderConfigurationRecord while AVCPacketType is 0  (2) one or more NALUs while AVCPacketType is 1  (3) otherwise empty
+	dataN := dataBuf[4:]
+
+	if avcPacketType != 1 && compositionTime != 0 {
+		return errors.New("Composition time offset not while AVCPacketType not 1(AVC NALU)")
+	}
+
+	fmt.Printf("[%-10d], FrameType: %d, CodecID: 7, AVCPacketType: %d, CompositionTime: %-5d, VideoDataLen: %d\n",
+		fp.bodyInfo.video, frameType, avcPacketType, compositionTime, len(dataN))
 
 	return nil
 }
@@ -228,7 +290,6 @@ scriptTagParse:
 			return errors.Wrap(err, "failed to decode scriptData map Value")
 		}
 
-		//kv[key] = value
 		scriptDataMap[key] = value
 	}
 
