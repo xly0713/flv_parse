@@ -129,7 +129,10 @@ parseTagsLoop:
 		}
 
 		tagType := ui8(bTagBuf[0:1]) & 0x1f
-		dataSize := ui24(bTagBuf[1:4]) //FIXME: check dataSize positive
+		dataSize := ui24(bTagBuf[1:4])
+		if dataSize < 1 {
+			return errors.New("invalid DataSize field")
+		}
 
 		dataBuf := make([]byte, dataSize)
 		if _, err := io.ReadAtLeast(fp.reader, dataBuf, int(dataSize)); err != nil {
@@ -167,8 +170,9 @@ parseTagsLoop:
 			}
 			fp.bodyInfo.videoEndTimeStamp = tagTimeStamp
 
-			//TODO: parse video data
-			fp.parseVideoTag(dataBuf)
+			if err := fp.parseVideoTag(dataBuf); err != nil {
+				return errors.Wrap(err, "failed to parse video tag")
+			}
 
 		case 0x12: //scriptData
 			fp.metaInfo = make(map[string]amf0.ECMAArray)
@@ -176,6 +180,7 @@ parseTagsLoop:
 			if err := decodeScriptData(bytes.NewReader(dataBuf), fp.metaInfo); err != nil {
 				return err
 			}
+
 		default:
 			return errors.New("unknown flv tag type")
 		}
@@ -186,11 +191,17 @@ parseTagsLoop:
 
 func (fp *Parser) parseVideoTag(dataBuf []byte) error {
 	fc := ui8(dataBuf[0:1])
+	videoData := dataBuf[1:]
+
 	frameType := (fc >> 4) //1:keyframe  2:inter frame  3:disposable inter frame(H.263 only)  4:generated keyframe(server use only)  5:video info/command frame
 	codecID := fc & 0x0f   //1:JPEG  2:Sorenson H.263  3.Screen video  4.On2 VP6  5:On2 VP6 with alpha channel  6:Screen video version 2  7:AVC
 
 	if frameType == 5 { //video info/command frame
-		seek := ui8(dataBuf[1:2])
+		if len(videoData) != 1 {
+			return errors.New("invalid VideoData while FrameType is 5")
+		}
+
+		seek := ui8(videoData)
 		if seek == 0 {
 			fmt.Println("Start of client-side seeking video frame squeunce")
 		} else if seek == 1 {
@@ -212,7 +223,7 @@ func (fp *Parser) parseVideoTag(dataBuf []byte) error {
 		//SCREENV2VIDEOPACKET
 	case 7:
 		//AVCVIDEOPACKET
-		return fp.avcVideoPacket(dataBuf, frameType)
+		return fp.avcVideoPacket(videoData, frameType)
 	default:
 	}
 
@@ -221,9 +232,8 @@ func (fp *Parser) parseVideoTag(dataBuf []byte) error {
 	return nil
 }
 
-func (fp *Parser) avcVideoPacket(dataBuf []byte, frameType uint8) error {
-	videoData := dataBuf[1:]
-	if len(videoData) <= 4 {
+func (fp *Parser) avcVideoPacket(videoData []byte, frameType uint8) error {
+	if len(videoData) < 4 {
 		return errors.New("invalid AVCVIDEOPACKET")
 	}
 
@@ -232,7 +242,7 @@ func (fp *Parser) avcVideoPacket(dataBuf []byte, frameType uint8) error {
 	// Composition time offset
 	compositionTime := ui24(videoData[1:4])
 	// h.264 raw data  (1) AVCDecoderConfigurationRecord while AVCPacketType is 0  (2) one or more NALUs while AVCPacketType is 1  (3) otherwise empty
-	dataN := dataBuf[4:]
+	dataN := videoData[4:]
 
 	if avcPacketType != 1 && compositionTime != 0 {
 		return errors.New("Composition time offset not while AVCPacketType not 1(AVC NALU)")
