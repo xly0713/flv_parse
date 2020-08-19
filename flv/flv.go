@@ -33,6 +33,7 @@ type BodyInfo struct {
 	video               int64
 	videoStartTimeStamp uint32
 	videoEndTimeStamp   uint32
+	meta                int64
 }
 
 //Parser flv parser struct
@@ -195,6 +196,8 @@ parseTagsLoop:
 			}
 
 		case 0x12: //scriptData
+			fp.bodyInfo.meta++
+
 			fp.metaInfo = make(map[string]amf0.ECMAArray)
 
 			if err := decodeScriptData(bytes.NewReader(dataBuf), fp.metaInfo); err != nil {
