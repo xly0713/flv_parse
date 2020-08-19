@@ -37,16 +37,18 @@ type BodyInfo struct {
 
 //Parser flv parser struct
 type Parser struct {
-	reader   io.ReadSeeker
-	header   *Header                   // flv header
-	bodyInfo BodyInfo                  // flv body info
-	metaInfo map[string]amf0.ECMAArray // flv body scriptData info
+	reader          io.ReadSeeker
+	header          *Header                   // flv header
+	bodyInfo        BodyInfo                  // flv body info
+	metaInfo        map[string]amf0.ECMAArray // flv body scriptData info
+	printVideoFrame bool                      // print video frame info
 }
 
 //NewFlvParser new flv parser instance
-func NewFlvParser(r io.ReadSeeker) *Parser {
+func NewFlvParser(r io.ReadSeeker, printVideoFrame bool) *Parser {
 	return &Parser{
-		reader: r,
+		reader:          r,
+		printVideoFrame: printVideoFrame,
 	}
 }
 
@@ -266,8 +268,10 @@ func (fp *Parser) avcVideoPacket(videoData []byte, frameType uint8) error {
 		return errors.New("Composition time offset not 0 while AVCPacketType not 1(AVC NALU)")
 	}
 
-	fmt.Printf("[%d], TimeStamp: %d, FrameType: %d, CodecID: 7(AVC), AVCPacketType: %d, CompositionTime: %d, VideoDataLen: %d\n",
-		fp.bodyInfo.video, fp.bodyInfo.videoEndTimeStamp, frameType, avcPacketType, compositionTime, len(dataN))
+	if fp.printVideoFrame {
+		fmt.Printf("[%d], TimeStamp: %d, FrameType: %d, CodecID: 7(AVC), AVCPacketType: %d, CompositionTime: %d, VideoDataLen: %d\n",
+			fp.bodyInfo.video, fp.bodyInfo.videoEndTimeStamp, frameType, avcPacketType, compositionTime, len(dataN))
+	}
 
 	return nil
 }

@@ -9,11 +9,13 @@ import (
 )
 
 var (
-	flvPath string
+	flvPath         string
+	printVideoFrame bool
 )
 
 func init() {
 	flag.StringVar(&flvPath, "f", "", "flv path")
+	flag.BoolVar(&printVideoFrame, "pf", false, "print video frame info one by one")
 }
 
 func main() {
@@ -31,7 +33,7 @@ func main() {
 	}
 	defer r.Close()
 
-	fp := flv.NewFlvParser(r)
+	fp := flv.NewFlvParser(r, printVideoFrame)
 	if err := fp.ParseFlv(); err != nil {
 		fmt.Printf("failed to parse flv, err: %v", err)
 		return
