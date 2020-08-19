@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"sort"
 
 	"github.com/pkg/errors"
 	"github.com/yutopp/go-amf0"
@@ -75,6 +76,23 @@ func (fp *Parser) BodyInfo() *BodyInfo {
 //MetaInfo return parsed flv scriptData Info
 func (fp *Parser) MetaInfo() map[string]amf0.ECMAArray {
 	return fp.metaInfo
+}
+
+//PrintMetaInfo print flv scriptData Info readable
+func (fp *Parser) PrintMetaInfo() {
+	for metaKey, metaValueMap := range fp.metaInfo {
+		fmt.Printf("%s:\n", metaKey)
+
+		sortedKeys := make([]string, 0)
+		for key := range metaValueMap {
+			sortedKeys = append(sortedKeys, key)
+		}
+		sort.Strings(sortedKeys)
+
+		for _, key := range sortedKeys {
+			fmt.Printf("\t%s: %v\n", key, metaValueMap[key])
+		}
+	}
 }
 
 func (fp *Parser) parseHeader() error {
@@ -245,11 +263,11 @@ func (fp *Parser) avcVideoPacket(videoData []byte, frameType uint8) error {
 	dataN := videoData[4:]
 
 	if avcPacketType != 1 && compositionTime != 0 {
-		return errors.New("Composition time offset not while AVCPacketType not 1(AVC NALU)")
+		return errors.New("Composition time offset not 0 while AVCPacketType not 1(AVC NALU)")
 	}
 
-	fmt.Printf("[%-10d], FrameType: %d, CodecID: 7, AVCPacketType: %d, CompositionTime: %-5d, VideoDataLen: %d\n",
-		fp.bodyInfo.video, frameType, avcPacketType, compositionTime, len(dataN))
+	fmt.Printf("[%d], TimeStamp: %d, FrameType: %d, CodecID: 7(AVC), AVCPacketType: %d, CompositionTime: %d, VideoDataLen: %d\n",
+		fp.bodyInfo.video, fp.bodyInfo.videoEndTimeStamp, frameType, avcPacketType, compositionTime, len(dataN))
 
 	return nil
 }

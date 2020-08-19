@@ -40,11 +40,13 @@ func main() {
 	flvHeader := fp.Header()
 	fmt.Printf("flv header: %+v\n", flvHeader)
 
-	flvScriptInfo := fp.MetaInfo()
-	fmt.Printf("flv script data: %+v\n", flvScriptInfo)
+	//flvScriptInfo := fp.MetaInfo()
+	//fmt.Printf("flv script data: %+v\n", flvScriptInfo)
 
 	flvBodyInfo := fp.BodyInfo()
 	fmt.Printf("flv body info: %+v\n", flvBodyInfo)
+
+	fp.PrintMetaInfo()
 }
 
 func isFileExist(filePath string) bool {
